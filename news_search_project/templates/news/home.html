@@ -1,0 +1,52 @@
+{% extends "base.html" %} {% block content %}
+<div class="container">
+  <div class="row">
+    <!-- Search Form Column -->
+    <div class="col-md-4">
+      <h2>Search News</h2>
+      <div class="card card-body">
+        <form method="POST" action="{% url 'home' %}">
+          {% csrf_token %}
+          <div class="form-group">
+            <input
+              type="text"
+              class="form-control"
+              name="keyword"
+              placeholder="Enter a keyword (e.g., Tesla)"
+            />
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">
+            Search & Track
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Tracked Keywords Column -->
+    <div class="col-md-8">
+      <h2>Your Tracked Keywords</h2>
+      <div class="list-group">
+        {% for keyword in keywords %}
+        <a
+          href="{% url 'keyword_articles' keyword.id %}"
+          class="list-group-item list-group-item-action"
+        >
+          <div class="d-flex w-100 justify-content-between">
+            <h5 class="mb-1">{{ keyword.keyword|title }}</h5>
+            <small>{{ keyword.articles.count }} articles found</small>
+          </div>
+          <p class="mb-1">
+            Last searched: {{ keyword.last_searched|timesince|default:"Never" }}
+            ago
+          </p>
+        </a>
+        {% empty %}
+        <p class="text-muted">
+          You are not tracking any keywords yet. Use the form to start.
+        </p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock content %}

@@ -1,0 +1,83 @@
+{% extends "base.html" %} {% block content %}
+<div class="container">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Articles for: <span class="text-primary">{{ keyword.keyword|title }}</span></h1>
+        <a href="{% url 'refresh_articles' keyword.id %}" class="btn btn-info">Fetch New</a>
+  </div>
+
+    <!-- Filter and Sort Form -->
+    <div class="card card-body mb-4">
+        <form method="GET" action="{% url 'keyword_articles' keyword.id %}" class="row align-items-end">
+            <div class="form-group col-md-3">
+                <label for="source_name" class="font-weight-bold">Source Name</label>
+                <input type="text" name="source_name" id="source_name" class="form-control" placeholder="e.g., BBC" value="{{ filter_params.source_name }}">
+            </div>
+            <div class="form-group col-md-2">
+                <label for="language" class="font-weight-bold">Language</label>
+                <select name="language" id="language" class="form-control">
+                    <option value=code>All</option>
+                    {% for code, lang in language_map.items %}
+                    {% if code %}
+                    <option value="{{ code }}" {% if filter_params.language == code %}selected{% endif %}>{{ lang|upper }}</option>
+                    {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group col-md-2">
+                <label for="start_date" class="font-weight-bold">Start Date</label>
+                <input type="date" name="start_date" id="start_date" class="form-control" value="{{ filter_params.start_date }}">
+            </div>
+            <div class="form-group col-md-2">
+                <label for="end_date" class="font-weight-bold">End Date</label>
+                <input type="date" name="end_date" id="end_date" class="form-control" value="{{ filter_params.end_date }}">
+            </div>
+            <div class="form-group col-md-3 d-flex">
+                <button type="submit" class="btn btn-primary mr-2 flex-grow-1">Filter</button>
+                <a href="{% url 'keyword_articles' keyword.id %}" class="btn btn-secondary flex-grow-1">Clear</a>
+            </div>
+        </form>
+    </div>
+
+  <div class="row">
+    {% for article in articles %}
+    <div class="col-md-6 col-lg-4 mb-4">
+      <div class="card h-100">
+        <!-- Added a placeholder for missing images -->
+        <img
+          src="{{ article.url_to_image|default:'https://placehold.co/600x400/eee/ccc?text=No+Image' }}"
+          class="card-img-top"
+          alt="{{ article.title }}"
+        />
+        <div class="card-body d-flex flex-column">
+          <h5 class="card-title">{{ article.title }}</h5>
+          <p class="card-text flex-grow-1">
+            {{ article.description|truncatewords:25 }}
+          </p>
+          <!-- This is where the date formatting happens -->
+          <p>
+            <small class="text-muted"
+              >{{ article.source_name|default:"Unknown Source" }} - {{ article.published_at|date:"M d, Y" }} 
+            </small>
+          </p>
+          <a
+            href="{{ article.url }}"
+            class="btn btn-secondary mt-auto"
+            target="_blank"
+            >Read Full Article</a
+          >
+        </div>
+      </div>
+    </div>
+    {% empty %}
+    <div class="col">
+      <div class="alert alert-warning">
+        <p>
+          No articles found for this keyword yet. Try the "Refresh & Clear"
+          button to fetch them.
+        </p>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock content %}
