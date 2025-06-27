@@ -15,7 +15,7 @@
             <div class="form-group col-md-2">
                 <label for="language" class="font-weight-bold">Language</label>
                 <select name="language" id="language" class="form-control">
-                    <option value=code>All</option>
+                    <option value="">All</option>
                     {% for code, lang in language_map.items %}
                     {% if code %}
                     <option value="{{ code }}" {% if filter_params.language == code %}selected{% endif %}>{{ lang|upper }}</option>
@@ -45,6 +45,7 @@
         <!-- Added a placeholder for missing images -->
         <img
           src="{{ article.url_to_image|default:'https://placehold.co/600x400/eee/ccc?text=No+Image' }}"
+          onerror="this.onerror=null;this.src='https://placehold.co/600x400/eee/ccc?text=No+Image';"
           class="card-img-top"
           alt="{{ article.title }}"
         />

@@ -4,6 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.conf import settings
 from django.utils import timezone
+from django.urls import reverse
 from dateutil import parser
 from datetime import timedelta
 from .models import Keyword, NewsArticle
@@ -25,19 +26,35 @@ LANGUAGE_MAP = {
     'zh': 'Chinese',
 }
 
+
 @login_required
 def home(request):
     """
     Handles the main home page. Displays a search form and a list of the user's
-    tracked keywords. Handles new keyword submissions.
+    tracked keywords. Enforces a quota on the number of keywords a user can track.
     """
     if request.method == 'POST':
         keyword_text = request.POST.get('keyword', '').strip().lower()
+        language = request.POST.get('language', 'en')
+
         if not keyword_text:
             messages.error(request, "Please enter a keyword to search.")
             return redirect('home')
 
-        # Prevent creating a duplicate keyword for the same user
+        # --- Keyword Quota Logic ---
+        # Check if the keyword already exists for this user.
+        keyword_exists = Keyword.objects.filter(user=request.user, keyword=keyword_text).exists()
+
+        # If the keyword is new, check if the user is under their quota.
+        if not keyword_exists:
+            current_keyword_count = Keyword.objects.filter(user=request.user).count()
+            quota = request.user.profile.keyword_quota
+            if current_keyword_count >= quota:
+                messages.error(request,
+                               f"You have reached your keyword limit of {quota}. You cannot add more keywords.")
+                return redirect('home')
+
+        # Proceed with get_or_create, which is safe now.
         keyword, created = Keyword.objects.get_or_create(user=request.user, keyword=keyword_text)
 
         if created:
@@ -45,26 +62,23 @@ def home(request):
         else:
             messages.info(request, f"Showing results for existing keyword: '{keyword.keyword}'.")
 
-        return redirect('keyword_articles', keyword_id=keyword.id)
+        redirect_url = f"{reverse('keyword_articles', args=[keyword.id])}?language={language}"
+        return redirect(redirect_url)
 
     keywords = Keyword.objects.filter(user=request.user).order_by('-created_at')
-    return render(request, 'news/home.html', {'keywords': keywords})
+    context = {
+        'keywords': keywords,
+        'language_map': LANGUAGE_MAP,
+    }
+    return render(request, 'news/home.html', context)
 
 
 def _fetch_and_save_articles(keyword, fetch_only_new=False, language='en'):
     """
     Helper function to fetch articles from the API and save them.
-
-    Args:
-        keyword (Keyword): The keyword to search for.
-        fetch_only_new (bool): If True, only fetches articles newer than the latest one stored.
-
-    Returns:
-        A tuple of (new_articles_found, error_message).
     """
     api_key = settings.NEWS_API_KEY
     if not api_key:
-        # This message is for the server log, not for the user directly
         print("ERROR: News API key is not configured.")
         return 0, "News API key is not configured."
 
@@ -75,9 +89,8 @@ def _fetch_and_save_articles(keyword, fetch_only_new=False, language='en'):
            f'sortBy=publishedAt')
 
     if fetch_only_new:
-        latest_article = keyword.articles.order_by('-published_at').first()
+        latest_article = keyword.articles.filter(language=language).order_by('-published_at').first()
         if latest_article:
-            # Add 1 second to avoid re-fetching the same article
             from_date = (latest_article.published_at + timedelta(seconds=1)).isoformat()
             url += f'&from={from_date}'
 
@@ -93,7 +106,6 @@ def _fetch_and_save_articles(keyword, fetch_only_new=False, language='en'):
     for article_data in data.get('articles', []):
         if not NewsArticle.objects.filter(url=article_data['url']).exists():
             try:
-                # The 'publishedAt' field can sometimes be None
                 if not article_data.get('publishedAt'):
                     continue
 
@@ -101,9 +113,10 @@ def _fetch_and_save_articles(keyword, fetch_only_new=False, language='en'):
 
                 NewsArticle.objects.create(
                     keyword=keyword,
-                    title=article_data['title'],
-                    description=article_data.get('description'),
-                    url=article_data['url'],
+                    title=article_data.get('title'),
+                    description=article_data.get('description') or '',
+                    content=article_data.get('content') or '',
+                    url=article_data.get('url'),
                     url_to_image=article_data.get('urlToImage'),
                     published_at=published_time,
                     source_name=article_data.get('source', {}).get('name', 'Unknown Source'),
@@ -121,29 +134,13 @@ def _fetch_and_save_articles(keyword, fetch_only_new=False, language='en'):
 @login_required
 def keyword_articles(request, keyword_id):
     """
-    Displays articles for a specific keyword. If no articles exist,
-    it fetches them for the first time. Handles sorting of articles.
+    Displays articles for a specific keyword, with sorting and filtering.
     """
     keyword = get_object_or_404(Keyword, id=keyword_id, user=request.user)
 
-    # If this keyword has never been searched, fetch articles immediately
-    # if keyword.last_searched is None:
-    #     new_count, error_message = _fetch_and_save_articles(keyword)
-    #     if error_message:
-    #         messages.error(request, error_message)
-    #     elif new_count > 0:
-    #         messages.success(request, f"Found {new_count} articles for '{keyword.keyword}'.")
-    #
-    # articles_queryset = keyword.articles.all()
-
-    # --- Filtering Logic ---
     filter_params = request.GET.copy()
-    source_name = filter_params.get('source_name', '').strip()
-    language = filter_params.get('language', 'en').strip() # Default to 'en'
-    start_date = filter_params.get('start_date', '').strip()
-    end_date = filter_params.get('end_date', '').strip()
+    language = filter_params.get('language', 'en').strip()
 
-    # Fetch articles for the selected language if they don't exist for this keyword
     if not keyword.articles.filter(language=language).exists():
         new_count, error_message = _fetch_and_save_articles(keyword, language=language)
         if error_message:
@@ -153,6 +150,9 @@ def keyword_articles(request, keyword_id):
                              f"Found {new_count} articles in {LANGUAGE_MAP.get(language, '')} for '{keyword.keyword}'.")
 
     articles_queryset = keyword.articles.all()
+    source_name = filter_params.get('source_name', '').strip()
+    start_date = filter_params.get('start_date', '').strip()
+    end_date = filter_params.get('end_date', '').strip()
 
     if source_name:
         articles_queryset = articles_queryset.filter(source_name__icontains=source_name)
@@ -163,9 +163,7 @@ def keyword_articles(request, keyword_id):
     if end_date:
         articles_queryset = articles_queryset.filter(published_at__lte=end_date)
 
-    # Sorting logic
-    sort_option = request.GET.get('sort', 'newest')  # Default to 'newest'
-
+    sort_option = filter_params.get('sort', 'newest')
     if sort_option == 'oldest':
         articles = articles_queryset.order_by('published_at')
     else:
@@ -176,7 +174,7 @@ def keyword_articles(request, keyword_id):
         'articles': articles,
         'current_sort': sort_option,
         'language_map': LANGUAGE_MAP,
-        'filter_params': filter_params,  # Pass current filters back to template
+        'filter_params': filter_params,
     }
     return render(request, 'news/keyword_articles.html', context)
 
@@ -184,25 +182,21 @@ def keyword_articles(request, keyword_id):
 @login_required
 def refresh_articles(request, keyword_id):
     """
-    Deletes all existing articles for a keyword and fetches the latest ones.
-    This includes a 15-minute throttle to prevent frequent API calls.
+    Fetches only new articles since the last search for the specified language.
     """
     keyword = get_object_or_404(Keyword, id=keyword_id, user=request.user)
     language = request.GET.get('language', 'en')
 
-    # --- Throttling Logic ---
     if keyword.last_searched:
         throttle_period = timedelta(minutes=15)
         time_since_last_search = timezone.now() - keyword.last_searched
 
         if time_since_last_search < throttle_period:
             minutes_left = int((throttle_period - time_since_last_search).total_seconds() / 60) + 1
-            messages.warning(request,
-                             f"You recently searched for this keyword. Please wait {minutes_left} more minute(s) before refreshing.")
+            messages.warning(request, f"You recently searched. Please wait {minutes_left} more minute(s).")
             return redirect('keyword_articles', keyword_id=keyword.id)
 
-    # --- Fetch only new articles ---
-    messages.info(request, f"Checking for new articles for '{keyword.keyword}'...")
+    messages.info(request, f"Checking for new articles in {LANGUAGE_MAP.get(language, '')} for '{keyword.keyword}'...")
     new_count, error_message = _fetch_and_save_articles(keyword, fetch_only_new=True, language=language)
 
     if error_message:
@@ -212,7 +206,5 @@ def refresh_articles(request, keyword_id):
     else:
         messages.info(request, "No new articles found since the last search.")
 
-    # Redirect back to the keyword articles page
-    # Redirect back with the language filter preserved
-    redirect_url = f"{redirect('keyword_articles', keyword_id=keyword.id).url}?language={language}"
+    redirect_url = f"{reverse('keyword_articles', args=[keyword.id])}?language={language}"
     return redirect(redirect_url)

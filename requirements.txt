@@ -9,3 +9,4 @@ sqlparse==0.5.3
 urllib3==2.5.0
 dotenv==0.9.9
 python-dateutil
+django-background-tasks
