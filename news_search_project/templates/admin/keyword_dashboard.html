@@ -1,0 +1,50 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<div id="content-main">
+    <h1>{{ title }}</h1>
+    <div style="display: flex; gap: 2rem;">
+        <!-- Trending Keywords Section -->
+        <div style="flex: 1;">
+            <h2>Trending Keywords</h2>
+            <div class="module">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Keyword Text</th>
+                            <th>Tracked by # Users</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for keyword in trending_keywords %}
+                        <tr>
+                            <td>{{ keyword.text }}</td>
+                            <td>{{ keyword.user_count }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Custom Interval Form Section -->
+        <div style="flex: 1;">
+            <h2>Set Custom Refresh Interval</h2>
+            <form method="POST">
+                {% csrf_token %}
+                <div class="form-row">
+                    {{ form.keyword_text.label_tag }} {{ form.keyword_text }}
+                </div>
+                <div class="form-row">
+                    {{ form.interval.label_tag }} {{ form.interval }}
+                    {% if form.interval.help_text %}
+                    <p class="help">{{ form.interval.help_text }}</p>
+                    {% endif %}
+                </div>
+                <div class="submit-row">
+                    <input type="submit" value="Set Interval" class="default">
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -12,7 +12,7 @@ pip (Python package installer)
 1. Clone the Repository (or setup the project)
    First, get the project code onto your machine. If it's in a git repository, clone it.
 
-git clone <your-repository-url>
+git clone https://github.com/vijay2909/News-Search.git
 cd <project-directory>
 
 2. Create and Activate a Virtual Environment
@@ -31,24 +31,24 @@ python -m venv venv
 3. Install Dependencies
    Install all the required packages using the requirements.txt file.
 
-pip install -r requirements.txt
+`pip install -r requirements.txt`
 
 4. Apply Database Migrations
    This command will create the necessary database tables for the application, including the tables for users and profiles.
 
-python manage.py migrate
+`python manage.py migrate`
 
 5. Create a Superuser
    To access the Django admin panel, you need to create a superuser account.
 
-python manage.py createsuperuser
+`python manage.py createsuperuser`
 
 You will be prompted to enter a username, email, and password.
 
 6. Run the Development Server
    Now you can start the Django development server.
 
-python manage.py runserver
+`python manage.py runserver`
 
 7. Access the Application
    The application will be running at http://127.0.0.1:8000/.
@@ -66,12 +66,16 @@ Run the worker process in a separate terminal
 
 `python manage.py process_tasks`
 
-Time Tracking
-(Please fill this in)
+**Total time taken:** 6-7 Hours
 
-Total time taken: [Your time here]
+# Development Experience
 
-Development Experience
-(Please fill this in)
+Working on this project over the course of 4 days, dedicating 1-2 hours each evening after office hours,
+was both challenging and exciting. The assignment pushed me to deepen my understanding of Django’s core features,
+including models, views, forms, and the admin interface. I enjoyed organizing the codebase into modular apps and 
+implementing user authentication, custom forms, and background tasks.
 
-[Share your overall experience working on this project here.]
+Balancing this project with my regular work schedule required effective time management and focus. 
+Each session brought new learning opportunities, from handling database migrations to automating periodic jobs with 
+management commands. Overall, this experience significantly enhanced my skills in building scalable and maintainable 
+Django applications, and increased my confidence in full-stack web development workflows.

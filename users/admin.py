@@ -54,26 +54,3 @@ class UserAdmin(BaseUserAdmin):
 # Re-register UserAdmin
 admin.site.unregister(User)
 admin.site.register(User, UserAdmin)
-
-# @admin.register(Profile)
-# class ProfileAdmin(admin.ModelAdmin):
-#     """
-#     Admin view for the Profile model. Allows admins to see and edit
-#     user-specific attributes like is_blocked and keyword_quota.
-#     """
-#     list_display = ['user', 'is_blocked', 'keyword_quota']
-#     actions = ['block_users', 'unblock_users']
-#
-#     def block_users(self, request, queryset):
-#         """
-#         Admin action to block selected users.
-#         """
-#         queryset.update(is_blocked=True)
-#     block_users.short_description = "Block selected users"
-#
-#     def unblock_users(self, request, queryset):
-#         """
-#         Admin action to unblock selected users.
-#         """
-#         queryset.update(is_blocked=False)
-#     unblock_users.short_description = "Unblock selected users"
